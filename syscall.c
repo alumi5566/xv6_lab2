@@ -17,10 +17,12 @@
 int
 fetchint(uint addr, int *ip)
 {
-  struct proc *curproc = myproc();
+  //struct proc *curproc = myproc();
 
-  if(addr >= curproc->sz || addr+4 > curproc->sz)
-    return -1;
+  //OS153 if(addr >= curproc->sz || addr+4 > curproc->sz)
+    //OS153 return -1;
+  if(addr >= KERNBASE || addr+4 >= KERNBASE)
+      cprintf("something wrong in fetchint!!\n");
   *ip = *(int*)(addr);
   return 0;
 }
@@ -32,12 +34,15 @@ int
 fetchstr(uint addr, char **pp)
 {
   char *s, *ep;
-  struct proc *curproc = myproc();
+  //struct proc *curproc = myproc();
 
-  if(addr >= curproc->sz)
-    return -1;
+  //OS153if(addr >= curproc->sz)
+    //OS153 return -1;
+  if(addr >= KERNBASE)
+    cprintf("something wrong in fetchstr!!\n");
   *pp = (char*)addr;
-  ep = (char*)curproc->sz;
+  //OS153ep = (char*)curproc->sz;
+  ep = (char*)(KERNBASE-1);
   for(s = *pp; s < ep; s++){
     if(*s == 0)
       return s - *pp;
@@ -59,12 +64,14 @@ int
 argptr(int n, char **pp, int size)
 {
   int i;
-  struct proc *curproc = myproc();
+  //struct proc *curproc = myproc();
  
   if(argint(n, &i) < 0)
     return -1;
-  if(size < 0 || (uint)i >= curproc->sz || (uint)i+size > curproc->sz)
-    return -1;
+  //OS153if(size < 0 || (uint)i >= curproc->sz || (uint)i+size > curproc->sz)
+    //OS153 return -1;
+  if(size < 0 || (uint)i >= KERNBASE || (uint)i+size > KERNBASE)
+    cprintf("something wrong in argptr!!\n");
   *pp = (char*)i;
   return 0;
 }

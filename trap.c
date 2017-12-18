@@ -77,7 +77,25 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
-
+	case T_PGFLT:{
+		uint cr2_addr = rcr2();
+		uint stackTop = PGROUNDDOWN(myproc()->tf->esp);
+		if(cr2_addr <= PGROUNDUP(myproc()->sz)+PGSIZE){// force stop, already write to data sector
+    		cprintf("force stop, already write to data sector\n");
+    		cprintf("rcr2()=0x%x, proc->sz=0x%x, stackSize=%d\n",cr2_addr,myproc()->sz,myproc()->stackSize);
+    		myproc()->killed = 1;
+    	}else{
+		  if((cr2_addr < stackTop) && (cr2_addr > stackTop-PGSIZE)){
+			if(allocuvm(myproc()->pgdir, stackTop-PGSIZE, stackTop)==0)
+				freevm(myproc()->pgdir);
+			myproc()->tf->esp -= PGSIZE;
+			//cprintf("alloc succ\n");
+		  }
+		}
+		if(myproc()->tf->esp<0x100000)
+			cprintf("sp:0x%x\n",myproc()->tf->esp);
+		break;
+	}
   //PAGEBREAK: 13
   default:
     if(myproc() == 0 || (tf->cs&3) == 0){
@@ -88,9 +106,9 @@ trap(struct trapframe *tf)
     }
     // In user space, assume process misbehaved.
     cprintf("pid %d %s: trap %d err %d on cpu %d "
-            "eip 0x%x addr 0x%x--kill proc\n",
+            "eip 0x%x addr 0x%x esp 0x%x--kill proc\n",
             myproc()->pid, myproc()->name, tf->trapno,
-            tf->err, cpuid(), tf->eip, rcr2());
+            tf->err, cpuid(), tf->eip, rcr2(), tf->esp);
     myproc()->killed = 1;
   }
 

@@ -233,7 +233,7 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   for(; a < newsz; a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
-      cprintf("allocuvm out of memory\n");
+      cprintf("allocuvm out of memory, in a:0x%x\n",a);
       deallocuvm(pgdir, newsz, oldsz);
       return 0;
     }
@@ -313,7 +313,7 @@ clearpteu(pde_t *pgdir, char *uva)
 // Given a parent process's page table, create a copy
 // of it for a child.
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint sz, uint stackSize)
 {
   pde_t *d;
   pte_t *pte;
@@ -324,9 +324,9 @@ copyuvm(pde_t *pgdir, uint sz)
     return 0;
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
+      panic("copyuvm: pte should exist1");
     if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
+      panic("copyuvm: page not present1");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
@@ -335,6 +335,27 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
       goto bad;
   }
+  //OS513: 0:sz only contain the static data, we hv to copy stack also
+  //proc->stackSize store the number of page we allocate for stack
+    //uint stackPtr = KERNBASE-1-1*PGSIZE;
+    //OK:uint stackPtr = PGROUNDDOWN(KERNBASE-1)-PGSIZE;
+    uint stackPtr = PGROUNDDOWN(KERNBASE-1)-(stackSize-1)*PGSIZE;
+    //uint stackPtr = stackSize;
+    //OK:for(i = stackPtr; i <= PGROUNDDOWN(KERNBASE-1); i += PGSIZE){
+    for(i = stackPtr; i <= KERNBASE-1; i += PGSIZE){
+        if((pte = walkpgdir(pgdir, (void *) i, 1)) == 0)
+            panic("copyuvm: pte should exist2");
+        if(!(*pte & PTE_P))
+            panic("copyuvm: page not present2");
+        pa = PTE_ADDR(*pte);
+        flags = PTE_FLAGS(*pte);
+        if((mem = kalloc()) == 0)
+            goto bad;
+        memmove(mem, (char*)P2V(pa), PGSIZE);
+        if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0)
+            goto bad;
+    }
+    
   return d;
 
 bad:

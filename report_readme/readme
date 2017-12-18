@@ -1,0 +1,17 @@
+this project is tested under self environment:
+Description:	Ubuntu 16.04.3 LTS
+Release:	16.04
+Codename:	xenial
+
+gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.4) 
+
+usage:
+To test part1, move to /xv6_lab2
+	$make qemu-nox
+and run the test program by
+	$test
+
+To test part2, move to directory /xv6_lab2
+	$make qemu-nox
+and run the test program by
+	$shm_cnt

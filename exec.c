@@ -59,7 +59,11 @@ exec(char *path, char **argv)
   iunlockput(ip);
   end_op();
   ip = 0;
+  //OS153: as original layout;
+  //at this point, sz should be in the end of text/ data sector
+  cprintf("OS153: sz = 0x%x (%d)\n",sz,sz);
 
+#if 0
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible.  Use the second as the user stack.
   sz = PGROUNDUP(sz);
@@ -67,7 +71,21 @@ exec(char *path, char **argv)
     goto bad;
   clearpteu(pgdir, (char*)(sz - 2*PGSIZE));
   sp = sz;
-
+  //OS153: after 2 pages allocate,
+  //sz should at the start of stack(toward 0x00)
+  cprintf("OS153: sz = 0x%x (%d)\n",sz,sz);
+#endif
+#if 1
+  // allocate
+  // this is OK:uint new_sp = allocuvm(pgdir, PGROUNDDOWN(KERNBASE-1)-PGSIZE, PGROUNDDOWN(KERNBASE-1));
+  uint new_sp = allocuvm(pgdir, PGROUNDDOWN(KERNBASE-1), KERNBASE-1);
+  //uint new_sp = allocuvm(pgdir, KERNBASE-1-PGSIZE, KERNBASE-1);
+  if (new_sp == 0)
+      cprintf("new_sp: fail\n");
+  sp = new_sp;
+  cprintf("new_sp ok: %x (%d)\n",sp,sp);
+  // should we modify sz??????
+#endif
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
@@ -86,19 +104,20 @@ exec(char *path, char **argv)
   sp -= (3+argc+1) * 4;
   if(copyout(pgdir, sp, ustack, (3+argc+1)*4) < 0)
     goto bad;
-
+  cprintf("OS153: sp = 0x%x (%d)\n",sp,sp);
   // Save program name for debugging.
   for(last=s=path; *s; s++)
     if(*s == '/')
       last = s+1;
   safestrcpy(curproc->name, last, sizeof(curproc->name));
-
+  //cprintf("exec() all ok!!\n");
   // Commit to the user image.
   oldpgdir = curproc->pgdir;
   curproc->pgdir = pgdir;
   curproc->sz = sz;
   curproc->tf->eip = elf.entry;  // main
   curproc->tf->esp = sp;
+  curproc->stackSize = 1;
   switchuvm(curproc);
   freevm(oldpgdir);
   return 0;
